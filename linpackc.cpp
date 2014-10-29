@@ -33,14 +33,31 @@ namespace bench {
 struct linpackc
 {
     std::thread worker;
+    long int nreps;
     char *mempool;
+    int arsize;
     bool force_end;
 
     linpackc()
-        : worker(&linpackc::linpackc_run, this)
-        , mempool(nullptr)
-        , force_end(false)
-    {}
+          : nreps(1)
+          , mempool(nullptr)
+          , arsize(200)
+          , force_end(false)
+    {
+        arsize /= 2;
+        arsize *= 2;
+
+        long arsize2d = (long)arsize * (long)arsize;
+
+        size_t memreq = arsize2d*sizeof(double) + (long)arsize*sizeof(double)
+         + (long)arsize * sizeof(int);
+
+        mempool = new char[memreq];
+        if (!mempool)
+            throw std::bad_alloc();
+
+        worker = std::thread(&linpackc::linpackc_run, this);
+    }
 
     ~linpackc()
     {
@@ -61,23 +78,8 @@ struct linpackc
 
     void linpackc_run()
     {
-        int arsize = 200;
-        arsize /= 2;
-        arsize *= 2;
-
-        long arsize2d = (long)arsize * (long)arsize;
-
-        size_t memreq = arsize2d*sizeof(double) + (long)arsize*sizeof(double)
-         + (long)arsize * sizeof(int);
-
-        mempool = new char[memreq];
-        long nreps = 1;
-
         while (not force_end)
             ::linpackc_run(nreps, arsize, mempool);
-
-        delete mempool;
-        mempool = nullptr;
     }
 };
 
