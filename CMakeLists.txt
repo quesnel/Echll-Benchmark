@@ -70,8 +70,8 @@ endif ()
 ## Executable
 #
 
-add_executable(Echll_Benchmark linpackc.c linpackc.h defs.hpp
-  linpackc.cpp linpackc.hpp main.cpp)
+add_executable(Echll_Benchmark defs.hpp global.cpp global.hpp
+  linpackc.c linpackc.cpp linpackc.h linpackc.hpp main.cpp models.hpp)
 
 target_link_libraries(Echll_Benchmark ${Echll_Benchmark_LINK_LIBRARIES})
 

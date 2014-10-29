@@ -29,6 +29,7 @@
 
 #include "linpackc.hpp"
 #include "defs.hpp"
+#include "global.hpp"
 #include <vle/mpi.hpp>
 #include <vle/utils.hpp>
 #include <fstream>
@@ -38,13 +39,15 @@ namespace bench {
 
 struct TopPixel : AtomicModel
 {
-    std::string  m_name;
+    std::string m_name;
     long int m_duration;
-    double value;
+    double m_value;
+    const bench::logger& m_log;
 
-    TopPixel()
+    TopPixel(const bench::logger& log)
         : AtomicModel({}, {"0"})
-        , value(0)
+        , m_value(0)
+        , m_log(log)
     {}
 
     virtual ~TopPixel()
@@ -67,7 +70,7 @@ struct TopPixel : AtomicModel
 
     virtual void lambda() const override final
     {
-        y[0] = {value};
+        y[0] = {m_value};
     }
 };
 
@@ -75,6 +78,7 @@ struct NormalPixel : AtomicModel
 {
     enum Phase { WAIT, SEND };
 
+    const bench::logger& m_log;
     std::string  m_name;
     double       m_value;
     double       m_current_time;
@@ -85,8 +89,9 @@ struct NormalPixel : AtomicModel
     unsigned int m_total_received;
     Phase        m_phase;
 
-    NormalPixel()
+    NormalPixel(const bench::logger& log)
         : AtomicModel({"0"}, {"0"})
+        , m_log(log)
         , m_value(0.0)
         , m_current_time(Infinity <double>::negative)
         , m_last_time(Infinity <double>::negative)
@@ -98,7 +103,7 @@ struct NormalPixel : AtomicModel
 
     virtual ~NormalPixel()
     {
-        vle::debugf("NormalPixel %s have received %" PRIuMAX " messages",
+        m_log.write(3, "NormalPixel %s have received %" PRIuMAX " messages\n",
                     m_name.c_str(),
                     static_cast <std::uintmax_t>(m_total_received));
     }
@@ -167,9 +172,11 @@ template <typename T>
 struct Coupled : T
 {
     std::string m_name;
+    const bench::logger& m_log;
 
-    Coupled()
+    Coupled(const bench::logger& log)
         : T()
+        , m_log(log)
     {}
 
     virtual ~Coupled()
@@ -207,9 +214,12 @@ template <typename T>
 struct RootMPI : T
 {
     boost::mpi::communicator com;
+    const bench::logger& m_log;
 
-    RootMPI()
-        : T(), com()
+    RootMPI(const bench::logger& log)
+        : T()
+        , com()
+        , m_log(log)
     {}
 
     virtual ~RootMPI()
@@ -235,7 +245,7 @@ struct RootMPI : T
 
         mdl->rank = child + 1;
 
-        vle::debugf("RootMPI assign %d to child %d", mdl->rank, child);
+        m_log.write(3, "RootMPI assign %d to child %d\n", mdl->rank, child);
 
         vle::Common ret(common);
 
@@ -246,8 +256,11 @@ struct RootMPI : T
 template <typename T>
 struct Root : T
 {
-    Root()
+    const bench::logger& m_log;
+
+    Root(const bench::logger& log)
         : T()
+        , m_log(log)
     {}
 
     virtual ~Root()

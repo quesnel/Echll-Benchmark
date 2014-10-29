@@ -30,6 +30,7 @@
 #include <vle/vle.hpp>
 #include <chrono>
 #include "defs.hpp"
+#include "global.hpp"
 #include "models.hpp"
 #include <cstdlib>
 #include <unistd.h>
@@ -53,6 +54,8 @@ static void main_show_help()
                  "              1: using thread for root\n"
                  "              2: using thread for sub-coupled model\n"
                  "              3: all is threaded\n"
+                 "  -q integer  Assigning a default level 0 = no verbose,\n"
+                 "              3 = fill terminal mode\n"
                  "\n"
                  "Examples:\n"
                  "$ Echll_Benchmark -d 100 -c 42 -t 3 root.tgf\n"
@@ -72,18 +75,19 @@ struct main_parameter
 
     long int duration = 100;
     long int counter = 1;
+    int verbose_mode = 0;
     bool use_thread_root = false;
     bool use_thread_sub = false;
 
-    void print()
+    void print(const bench::logger& log)
     {
-        std::fprintf(stdout,
-                     "Flags:\n"
-                     "- duration: %ld ms\n"
-                     "- counter: %ld runs\n"
-                     "- use threaded root: %d\n"
-                     "- use threaded coupled: %d\n",
-                     duration, counter, use_thread_root, use_thread_sub);
+        log.write(1,
+                  "Flags:\n"
+                  "- duration: %ld ms\n"
+                  "- counter: %ld runs\n"
+                  "- use threaded root: %d\n"
+                  "- use threaded coupled: %d\n",
+                  duration, counter, use_thread_root, use_thread_sub);
     }
 };
 
@@ -92,13 +96,32 @@ static main_parameter main_getopt(int argc, char* argv[])
     main_parameter ret;
     int opt;
 
-    while ((opt = ::getopt(argc, argv, "vhd:c:t:")) != -1) {
+    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:")) != -1) {
         switch (opt) {
         case 'v':
             main_show_version();
             break;
         case 'h':
             main_show_help();
+            break;
+        case 'q':
+            {
+                char *nptr;
+                ret.verbose_mode = ::strtol(::optarg, &nptr, 10);
+                if (nptr == ::optarg) {
+                    std::fprintf(stderr,
+                                 "-q: Failed to convert %s into verbose mode"
+                                 " (integer)\n", ::optarg);
+                    exit(EXIT_FAILURE);
+                }
+
+                if (ret.verbose_mode < 0) {
+                    std::fprintf(stderr, "-q: Can not assign negative verbose"
+                                 " mode\n");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            }
             break;
         case 'd':
             {
@@ -181,44 +204,44 @@ static vle::CommonPtr main_common_new(long int duration,
 }
 
 static std::shared_ptr <bench::Factory>
-main_factory_new(const main_parameter& mp, bool mpi_mode_and_root)
+main_factory_new(const bench::logger& log, const main_parameter& mp, bool mpi_mode_and_root)
 {
     std::shared_ptr <bench::Factory> ret = std::make_shared <bench::Factory>();
 
     typedef bench::Factory::modelptr modelptr;
 
     ret->functions.emplace("normal",
-                           []() -> modelptr
+                           [&log]() -> modelptr
                            {
-                               return modelptr(new bench::NormalPixel);
+                               return modelptr(new bench::NormalPixel(log));
                            });
     ret->functions.emplace("top",
-                           []() -> modelptr
+                           [&log]() -> modelptr
                            {
-                               return modelptr(new bench::TopPixel);
+                               return modelptr(new bench::TopPixel(log));
                            });
 
     if (mpi_mode_and_root) {
         ret->functions.emplace("coupled",
-                               []() -> modelptr
+                               [&log]() -> modelptr
                                {
-                                   std::printf("build a SynchronousProxyModel\n");
+                                   log.write(2, "build a SynchronousProxyModel");
                                    return modelptr(new bench::SynchronousProxyModel);
                                });
     } else {
         if (mp.use_thread_sub) {
             ret->functions.emplace("coupled",
-                                   []() -> modelptr
+                                   [&log]() -> modelptr
                                    {
-                                       std::printf("build a CoupledThread\n");
-                                       return modelptr(new bench::CoupledThread);
+                                       log.write(2, "build a CoupledThread\n");
+                                       return modelptr(new bench::CoupledThread(log));
                                    });
         } else {
             ret->functions.emplace("coupled",
-                                   []() -> modelptr
+                                   [&log]() -> modelptr
                                    {
-                                       std::printf("build a CoupledMono\n");
-                                       return modelptr(new bench::CoupledMono);
+                                       log.write(2, "build a CoupledMono\n");
+                                       return modelptr(new bench::CoupledMono(log));
                                    });
         }
     }
@@ -229,22 +252,23 @@ main_factory_new(const main_parameter& mp, bool mpi_mode_and_root)
 static void main_mono_mode(int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
+    bench::logger log(mp.verbose_mode);
 
-    std::fprintf(stdout, "No MPI mode activated\n");
-    mp.print();
+    log.write(0, "No MPI mode activated\n");
+    mp.print(log);
 
-    std::shared_ptr <bench::Factory> factory = main_factory_new(mp, false);
+    std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
     vle::CommonPtr common = main_common_new(mp.duration, factory);
 
     for (int i = ::optind; i < argc; ++i) {
-        std::fprintf(stdout, "Run for %s\n", argv[i]);
+        log.write(1, "Run for %s\n", argv[i]);
 
         common->at("tgf-filesource") = std::string(argv[i]);
         auto start = std::chrono::steady_clock::now();
 
         std::ifstream ifs(argv[i]);
         if (not ifs) {
-            std::fprintf(stdout, "File %s: can not be read\n", argv[i]);
+            log.write(0, "File %s: can not be read\n", argv[i]);
             continue;
         }
 
@@ -254,11 +278,11 @@ static void main_mono_mode(int argc, char *argv[])
             bench::DSDE dsde_engine(common);
 
             if (mp.use_thread_root) {             // TODO improve !
-                bench::RootThread root;
+                bench::RootThread root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             } else {
-                bench::RootMono root;
+                bench::RootMono root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             }
@@ -267,12 +291,14 @@ static void main_mono_mode(int argc, char *argv[])
         auto end = std::chrono::steady_clock::now();
         auto diff = end - start;
 
+        log.write(0, "File %s\n", argv[i]);
+
         double v = std::chrono::duration <double, std::milli>(diff).count();
-        std::fprintf(stdout, "- Total simulations duration: %f ms\n", v);
+        log.write(0, "- Total simulations duration: %f ms\n", v);
 
         if (mp.counter > 1) {
             double vc = v / mp.counter;
-            std::fprintf(stdout, "- Simulation average duration: %f ms", vc);
+            log.write(0, "- Simulation average duration: %f ms", vc);
         }
     }
 }
@@ -280,38 +306,34 @@ static void main_mono_mode(int argc, char *argv[])
 static void main_mpi_mode(int rank, int size, int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
-
-    std::fprintf(stdout, "I am %d\n", rank);
+    bench::logger log(mp.verbose_mode);
 
     if (rank == 0) {
-        std::fprintf(stdout, "MPI mode activated: %d/%d\n", rank, size);
-        mp.print();
+        log.write(1, "MPI mode activated: %d/%d\n", rank, size);
+        mp.print(log);
 
-        std::shared_ptr <bench::Factory> factory = main_factory_new(mp, true);
+        std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, true);
         vle::CommonPtr common = main_common_new(mp.duration, factory);
 
         common->at("tgf-filesource") = std::string(argv[::optind]);
         bench::DSDE dsde_engine(common);
 
         if (mp.use_thread_root) {
-            bench::RootMPIThread root;
+            bench::RootMPIThread root(log);
             vle::Simulation <bench::DSDE> sim(dsde_engine, root);
             sim.run(0.0, 10.0);
         } else {
-            bench::RootMPIMono root;
+            bench::RootMPIMono root(log);
             vle::Simulation <bench::DSDE> sim(dsde_engine, root);
             sim.run(0.0, 10.0);
         }
     } else {
-        std::fprintf(stdout, "Need to start SynchronousProxyModel %d", rank);
-        std::shared_ptr <bench::Factory> factory = main_factory_new(mp, false);
+        log.write(1, "Need to start SynchronousProxyModel %d", rank);
+        std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
         vle::CommonPtr common = main_common_new(mp.duration, factory);
 
         common->operator[]("name") = vle::stringf("s%d", rank - 1);
         common->operator[]("tgf-filesource") = vle::stringf("s%d.tgf", rank - 1);
-
-        std::string str = vle::common_get <std::string>(*common.get(), "tgf-filesource");
-        std::printf("SynchronousLogicalProcessor: %s\n", str.c_str());
 
         bench::SynchronousLogicalProcessor sp(common);
         bench::Factory::modelptr coupled = factory->get("coupled");
