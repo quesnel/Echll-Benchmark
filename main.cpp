@@ -250,7 +250,46 @@ main_factory_new(const bench::logger& log, const main_parameter& mp, bool mpi_mo
     return std::move(ret);
 }
 
-static void main_mono_mode(int argc, char *argv[])
+struct Sample
+{
+    struct result
+    {
+        double mean;
+        double variance;
+        double standard_deviation;
+    };
+
+    Sample(std::size_t nb)
+        : sample(nb)
+    {}
+
+    Sample::result compute() const
+    {
+        Sample::result ret;
+
+        ret.mean = std::accumulate(sample.cbegin(), sample.cend(), 0.0,
+                                   [](double init, double duration)
+                                   {
+                                       return init + duration;
+                                   }) / static_cast <double>(sample.size());
+
+        ret.variance = std::accumulate(sample.cbegin(), sample.cend(), 0.0,
+                                       [&ret](double init, double duration)
+                                       {
+                                           return init + std::pow(duration -
+                                                                  ret.mean,
+                                                                  2.0);
+                                       }) / static_cast <double>(sample.size());
+
+        ret.standard_deviation = std::sqrt(ret.variance);
+
+        return std::move(ret);
+    }
+
+    std::vector <double> sample;
+};
+
+static int main_mono_mode(int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
     bench::logger log(mp.verbose_mode);
@@ -267,47 +306,43 @@ static void main_mono_mode(int argc, char *argv[])
 
         common->at("tgf-filesource") = std::string(argv[i]);
 
-        std::ifstream ifs(argv[i]);
-        if (not ifs) {
-            log.write(1, "File %s: can not be read\n", argv[i]);
-            continue;
-        }
-
         double total_duration = 0.0;
-        double duration;
-        for (long int run = 0; run < mp.counter; ++run) {
-            ifs.seekg(0, ifs.beg);
+        Sample sample(mp.counter);
 
+        for (long int run = 0; run < mp.counter; ++run) {
             bench::DSDE dsde_engine(common);
 
             if (mp.use_thread_root) {             // TODO improve !
-                bench::Timer timer(&duration);
+                bench::Timer timer(&sample.sample[run]);
                 bench::RootThread root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             } else {
-                bench::Timer timer(&duration);
+                bench::Timer timer(&sample.sample[run]);
                 bench::RootMono root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             }
 
-            if (duration < 0.0) {
+            if (sample.sample[run] < 0.0) {
                 log.write(1, "Simulation failure\n");
-                --mp.counter;
-            } else
-                total_duration += duration;
+                return -ECANCELED;
+            }
+
+            total_duration += sample.sample[run];
         }
 
-        if (mp.counter <= 1)
-            log.write(0, "%s\t%f\n", argv[i], total_duration);
-        else
-            log.write(0, "%s\t%f\t%f\n", argv[i], total_duration,
-                      (total_duration / mp.counter));
+        auto result = sample.compute();
+
+        log.write(0, "%s\t%f\t%f\t%f\t%f\n",
+                  argv[i], total_duration, result.mean, result.variance,
+                  result.standard_deviation);
     }
+
+    return 0;
 }
 
-static void main_mpi_mode(int rank, int size, int argc, char *argv[])
+static int main_mpi_mode(int rank, int size, int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
     bench::logger log(mp.verbose_mode);
@@ -345,18 +380,20 @@ static void main_mpi_mode(int rank, int size, int argc, char *argv[])
         sp.parent = 0;
         sp.run(*coupled);
     }
+
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
     boost::mpi::environment env(argc, argv);
     boost::mpi::communicator comm;
+    int ret;
 
-    if (comm.size() == 1) {
-        main_mono_mode(argc, argv);
-    } else {
-        main_mpi_mode(comm.rank(), comm.size(), argc, argv);
-    }
+    if (comm.size() == 1)
+        ret = main_mono_mode(argc, argv);
+    else
+        ret = main_mpi_mode(comm.rank(), comm.size(), argc, argv);
 
-    return EXIT_SUCCESS;
+    return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
