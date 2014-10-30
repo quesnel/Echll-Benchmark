@@ -253,8 +253,9 @@ static void main_mono_mode(int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
     bench::logger log(mp.verbose_mode);
+    log.log_to_fd(::fileno(stdout));
 
-    log.write(0, "No MPI mode activated\n");
+    log.write(1, "No MPI mode activated\n");
     mp.print(log);
 
     std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
@@ -268,7 +269,7 @@ static void main_mono_mode(int argc, char *argv[])
 
         std::ifstream ifs(argv[i]);
         if (not ifs) {
-            log.write(0, "File %s: can not be read\n", argv[i]);
+            log.write(1, "File %s: can not be read\n", argv[i]);
             continue;
         }
 
@@ -291,14 +292,13 @@ static void main_mono_mode(int argc, char *argv[])
         auto end = std::chrono::steady_clock::now();
         auto diff = end - start;
 
-        log.write(0, "File %s\n", argv[i]);
-
         double v = std::chrono::duration <double, std::milli>(diff).count();
-        log.write(0, "- Total simulations duration: %f ms\n", v);
 
-        if (mp.counter > 1) {
+        if (mp.counter <= 1) {
+            log.write(0, "%s\t%f\n", argv[i], v);
+        } else {
             double vc = v / mp.counter;
-            log.write(0, "- Simulation average duration: %f ms", vc);
+            log.write(0, "%s\t%f\t%f\n", argv[i], v, vc);
         }
     }
 }
@@ -307,6 +307,7 @@ static void main_mpi_mode(int rank, int size, int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
     bench::logger log(mp.verbose_mode);
+    log.log_to_fd(::fileno(stdout));
 
     if (rank == 0) {
         log.write(1, "MPI mode activated: %d/%d\n", rank, size);
