@@ -71,7 +71,8 @@ endif ()
 #
 
 add_executable(echll-benchmark defs.hpp global.cpp global.hpp
-  linpackc.c linpackc.cpp linpackc.h linpackc.hpp main.cpp models.hpp)
+  linpackc.c linpackc.cpp linpackc.h linpackc.hpp main.cpp models.hpp
+  timer.hpp)
 
 target_link_libraries(echll-benchmark ${Echll_Benchmark_LINK_LIBRARIES})
 

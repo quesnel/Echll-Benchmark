@@ -31,6 +31,7 @@
 #include <chrono>
 #include "defs.hpp"
 #include "global.hpp"
+#include "timer.hpp"
 #include "models.hpp"
 #include <cstdlib>
 #include <unistd.h>
@@ -265,7 +266,6 @@ static void main_mono_mode(int argc, char *argv[])
         log.write(1, "Run for %s\n", argv[i]);
 
         common->at("tgf-filesource") = std::string(argv[i]);
-        auto start = std::chrono::steady_clock::now();
 
         std::ifstream ifs(argv[i]);
         if (not ifs) {
@@ -273,33 +273,37 @@ static void main_mono_mode(int argc, char *argv[])
             continue;
         }
 
+        double total_duration = 0.0;
+        double duration;
         for (long int run = 0; run < mp.counter; ++run) {
             ifs.seekg(0, ifs.beg);
 
             bench::DSDE dsde_engine(common);
 
             if (mp.use_thread_root) {             // TODO improve !
+                bench::Timer timer(&duration);
                 bench::RootThread root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             } else {
+                bench::Timer timer(&duration);
                 bench::RootMono root(log);
                 vle::Simulation <bench::DSDE> sim(dsde_engine, root);
                 sim.run(0.0, 10.0);
             }
+
+            if (duration < 0.0) {
+                log.write(1, "Simulation failure\n");
+                --mp.counter;
+            } else
+                total_duration += duration;
         }
 
-        auto end = std::chrono::steady_clock::now();
-        auto diff = end - start;
-
-        double v = std::chrono::duration <double, std::milli>(diff).count();
-
-        if (mp.counter <= 1) {
-            log.write(0, "%s\t%f\n", argv[i], v);
-        } else {
-            double vc = v / mp.counter;
-            log.write(0, "%s\t%f\t%f\n", argv[i], v, vc);
-        }
+        if (mp.counter <= 1)
+            log.write(0, "%s\t%f\n", argv[i], total_duration);
+        else
+            log.write(0, "%s\t%f\t%f\n", argv[i], total_duration,
+                      (total_duration / mp.counter));
     }
 }
 
