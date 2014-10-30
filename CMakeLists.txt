@@ -70,25 +70,25 @@ endif ()
 ## Executable
 #
 
-add_executable(Echll_Benchmark defs.hpp global.cpp global.hpp
+add_executable(echll-benchmark defs.hpp global.cpp global.hpp
   linpackc.c linpackc.cpp linpackc.h linpackc.hpp main.cpp models.hpp)
 
-target_link_libraries(Echll_Benchmark ${Echll_Benchmark_LINK_LIBRARIES})
+target_link_libraries(echll-benchmark ${Echll_Benchmark_LINK_LIBRARIES})
 
 if (MPI_CXX_COMPILE_FLAGS)
-  set_target_properties(Echll_Benchmark PROPERTIES
+  set_target_properties(echll-benchmark PROPERTIES
     COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif ()
 
 if (MPI_CXX_LINK_FLAGS)
-  set_target_properties(Echll_Benchmark PROPERTIES
+  set_target_properties(echll-benchmark PROPERTIES
     LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif ()
 
-set_target_properties(Echll_Benchmark PROPERTIES
+set_target_properties(echll-benchmark PROPERTIES
   COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
 
-install(TARGETS Echll_Benchmark DESTINATION bin)
+install(TARGETS echll-benchmark DESTINATION bin)
 
 ### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 ## Testing
@@ -113,15 +113,15 @@ endif ()
 
 include(InstallRequiredSystemLibraries)
 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Echll_Benchmark")
-set(CPACK_PACKAGE_VENDOR "INRA")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Echll-Benchmark")
+set(CPACK_PACKAGE_VENDOR "MIAT INRA")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${PROJECT_SOURCE_DIR}/README.md")
 set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING")
-set(CPACK_PACKAGE_NAME "Echll_Benchmark")
+set(CPACK_PACKAGE_NAME "Echll-Benchmark")
 set(CPACK_PACKAGE_VERSION_MAJOR "${Echll_Benchmark_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${Echll_Benchmark_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${Echll_Benchmark_PATCH}")
-SET(CPACK_PACKAGE_INSTALL_DIRECTORY "Echll_Benchmark ${Echll_Benchmark_MAJOR}.${Echll_Benchmark_MINOR}")
+SET(CPACK_PACKAGE_INSTALL_DIRECTORY "Echll-Benchmark ${Echll_Benchmark_MAJOR}.${Echll_Benchmark_MINOR}")
 set(CPACK_STRIP_FILES "1")
 set(CPACK_PACKAGE_CONTACT "Gauthier Quesnel <gauthier.quesnel@toulouse.inra.fr>")
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY "1")
@@ -135,7 +135,7 @@ else ()
   set (CPACK_SOURCE_GENERATOR "TGZ;TBZ2")
 endif ()
 
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "Echll_Benchmark-${Echll_Benchmark_VERSION}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "echll-benchmark-${Echll_Benchmark_VERSION}")
 set(CPACK_SOURCE_IGNORE_FILES
   "/\\\\.git/"
   "\\\\.#"
@@ -151,17 +151,17 @@ set(CPACK_SOURCE_IGNORE_FILES
   )
 
 if (WIN32 AND NOT UNIX)
-  set(CPACK_NSIS_MUI_ICON "${PROJECT_SOURCE_DIR}\\\\Echll_Benchmark.ico")
-  set(CPACK_NSIS_MUI_UNIICON "${PROJECT_SOURCE_DIR}\\\\Echll_Benchmark.ico")
-  set(CPACK_PACKAGE_ICON "${PROJECT_SOURCE_DIR}\\\\Echll_Benchmark.bmp")
-  set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\Echll_Benchmark.exe")
-  set(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} Echll_Benchmark ${Echll_Benchmark_VERSION}")
+  set(CPACK_NSIS_MUI_ICON "${PROJECT_SOURCE_DIR}\\\\echll-benchmark.ico")
+  set(CPACK_NSIS_MUI_UNIICON "${PROJECT_SOURCE_DIR}\\\\echll-benchmark.ico")
+  set(CPACK_PACKAGE_ICON "${PROJECT_SOURCE_DIR}\\\\echll-benchmark.bmp")
+  set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\echll-benchmark.exe")
+  set(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} echll-benchmark ${Echll_Benchmark_VERSION}")
   set(CPACK_NSIS_HELP_LINK "http:\\\\\\\\https://github.com/quesnel/Echll_Benchmark")
   set(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\https://github.com/quesnel/Echll_Benchmark")
   set(CPACK_NSIS_CONTACT "gauthier.quesnel@toulouse.inra.fr")
   set(CPACK_NSIS_MODIFY_PATH ON)
 else ()
-  set(CPACK_STRIP_FILES "bin/Echll_Benchmark")
+  set(CPACK_STRIP_FILES "bin/echll-benchmark")
 endif ()
 
 INCLUDE(CPack)
