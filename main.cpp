@@ -372,8 +372,8 @@ static int main_mpi_mode(int rank, int size, int argc, char *argv[])
         std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
         vle::CommonPtr common = main_common_new(mp.duration, factory);
 
-        common->operator[]("name") = vle::stringf("s%d", rank - 1);
-        common->operator[]("tgf-filesource") = vle::stringf("s%d.tgf", rank - 1);
+        common->operator[]("name") = vle::stringf("S%d", rank - 1);
+        common->operator[]("tgf-filesource") = vle::stringf("S%d.tgf", rank - 1);
 
         bench::SynchronousLogicalProcessor sp(common);
         bench::Factory::modelptr coupled = factory->get("coupled");

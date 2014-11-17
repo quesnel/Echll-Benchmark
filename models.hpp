@@ -276,8 +276,8 @@ struct Root : T
 
         vle::Common ret(common);
 
-        ret["name"] = vle::stringf("s%d", child);
-        ret["tgf-filesource"] = vle::stringf("s%d.tgf", child);
+        ret["name"] = vle::stringf("S%d", child);
+        ret["tgf-filesource"] = vle::stringf("S%d.tgf", child);
 
         return std::move(ret);
     }
