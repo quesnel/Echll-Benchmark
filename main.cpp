@@ -57,6 +57,8 @@ static void main_show_help()
                  "              3: all is threaded\n"
                  "  -q integer  Assigning a default level 0 = no verbose,\n"
                  "              3 = fill terminal mode\n"
+                 "  -o file     Output results into output file `file'."
+                 "              (Default is standard output)\n"
                  "\n"
                  "Examples:\n"
                  "$ Echll_Benchmark -d 100 -c 42 -t 3 root.tgf\n"
@@ -79,6 +81,7 @@ struct main_parameter
     int verbose_mode = 0;
     bool use_thread_root = false;
     bool use_thread_sub = false;
+    FILE *output = stdout;
 
     void print(const bench::logger& log)
     {
@@ -90,6 +93,12 @@ struct main_parameter
                   "- use threaded coupled: %d\n",
                   duration, counter, use_thread_root, use_thread_sub);
     }
+
+    ~main_parameter()
+    {
+        if (output && output != stdout)
+            std::fclose(output);
+    }
 };
 
 static main_parameter main_getopt(int argc, char* argv[])
@@ -97,7 +106,7 @@ static main_parameter main_getopt(int argc, char* argv[])
     main_parameter ret;
     int opt;
 
-    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:")) != -1) {
+    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:o:")) != -1) {
         switch (opt) {
         case 'v':
             main_show_version();
@@ -178,6 +187,18 @@ static main_parameter main_getopt(int argc, char* argv[])
                 break;
             }
             break;
+        case 'o':
+            {
+                char *output = ::optarg;
+                FILE *file = std::fopen(output, "w");
+                if (!file) {
+                    std::fprintf(stderr, "-o: Failed to open output file %s",
+                                 output);
+                    exit(EXIT_FAILURE);
+                }
+
+                ret.output = file;
+            }
         }
     }
 
@@ -334,9 +355,9 @@ static int main_mono_mode(int argc, char *argv[])
 
         auto result = sample.compute();
 
-        log.write(0, "%s\t%f\t%f\t%f\t%f\n",
-                  argv[i], total_duration, result.mean, result.variance,
-                  result.standard_deviation);
+        std::fprintf(mp.output, "%f;%f;%f;%f\n",
+                     total_duration, result.mean, result.variance,
+                     result.standard_deviation);
     }
 
     return 0;
