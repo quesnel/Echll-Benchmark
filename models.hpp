@@ -63,7 +63,8 @@ struct TopPixel : AtomicModel
 
     virtual double delta(const double&) override final
     {
-        bench::sleep_and_work(m_duration);
+        if (m_duration > 0)
+            bench::sleep_and_work(m_duration);
 
         return 1.0;
     }
@@ -141,7 +142,8 @@ struct NormalPixel : AtomicModel
 
     void dint(const double& time)
     {
-        sleep_and_work(m_duration);
+        if (m_duration > 0)
+            bench::sleep_and_work(m_duration);
 
         if (m_phase == SEND) {
             m_phase = WAIT;

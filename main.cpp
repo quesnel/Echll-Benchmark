@@ -50,6 +50,7 @@ static void main_show_help()
                  "  -h          This help\n"
                  "  -v          Version of Echll_Benchmark\n"
                  "  -d integer  Assigning minimal duration to internal transition\n"
+                 "              0 means, no duration\n"
                  "  -c integer  Assigning number of run by simulation\n"
                  "  -t integer  0: no thread\n"
                  "              1: using thread for root\n"
@@ -144,9 +145,8 @@ static main_parameter main_getopt(int argc, char* argv[])
                     exit(EXIT_FAILURE);
                 }
 
-                if (ret.duration <= 0) {
-                    std::fprintf(stderr, "-d: Can not assign zero or a"
-                                 " negative duration\n");
+                if (ret.duration < 0) {
+                    std::fprintf(stderr, "-d: Can not assign a negative duration\n");
                     exit(EXIT_FAILURE);
                 }
                 break;
