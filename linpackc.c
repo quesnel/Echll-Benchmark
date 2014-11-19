@@ -78,7 +78,7 @@ typedef float   REAL;
 typedef double  REAL;
 #endif
 
-static REAL linpack  (long nreps,int arsize, void* mempool);
+static REAL linpack  (long nreps,int arsize, void* mempool, int *force_end);
 static void matgen   (REAL *a,int lda,int n,REAL *b,REAL *norma);
 static void dgefa    (REAL *a,int lda,int n,int *ipvt,int *info,int roll);
 static void dgesl    (REAL *a,int lda,int n,int *ipvt,REAL *b,int job,int roll);
@@ -138,12 +138,12 @@ static REAL second   (void);
         /*}*/
     /*}*/
 
-void linpackc_run(long nreps, int arsize, char *mempool)
+void linpackc_run(long nreps, int arsize, char *mempool, int *force_end)
 {
-        linpack(nreps, arsize, (void*)mempool);
+        linpack(nreps, arsize, (void*)mempool, force_end);
 }
 
-static REAL linpack(long nreps,int arsize, void *mempool)
+static REAL linpack(long nreps,int arsize, void *mempool, int *force_end)
 
     {
     REAL  *a,*b;
@@ -163,21 +163,39 @@ static REAL linpack(long nreps,int arsize, void *mempool)
     totalt=second();
     for (i=0;i<nreps;i++)
         {
+    if (*force_end)
+            return 0.0;
+
         matgen(a,lda,n,b,&norma);
         t1 = second();
         dgefa(a,lda,n,ipvt,&info,1);
+    if (*force_end)
+            return 0.0;
+
         tdgefa += second()-t1;
         t1 = second();
+    if (*force_end)
+            return 0.0;
+
         dgesl(a,lda,n,ipvt,b,0,1);
         tdgesl += second()-t1;
         }
     for (i=0;i<nreps;i++)
         {
+    if (*force_end)
+            return 0.0;
+
         matgen(a,lda,n,b,&norma);
         t1 = second();
+    if (*force_end)
+            return 0.0;
+
         dgefa(a,lda,n,ipvt,&info,0);
         tdgefa += second()-t1;
         t1 = second();
+    if (*force_end)
+            return 0.0;
+
         dgesl(a,lda,n,ipvt,b,0,0);
         tdgesl += second()-t1;
         }

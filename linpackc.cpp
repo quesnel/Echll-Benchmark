@@ -36,7 +36,7 @@ struct linpackc
     long int nreps;
     char *mempool;
     int arsize;
-    bool force_end;
+    int force_end;
 
     linpackc()
           : nreps(1)
@@ -79,14 +79,16 @@ struct linpackc
     void linpackc_run()
     {
         while (not force_end)
-            ::linpackc_run(nreps, arsize, mempool);
+            ::linpackc_run(nreps, arsize, mempool, &force_end);
     }
 };
 
-void sleep_and_work(long int duration)
+void sleep_and_work(double duration)
 {
+    long int d = static_cast <long int>(duration * 1000.0);
+
     bench::linpackc lp;
-    std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+    std::this_thread::sleep_for(std::chrono::microseconds(d));
     lp.set_end();
 }
 

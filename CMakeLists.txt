@@ -103,6 +103,14 @@ find_path(CATCH_INCLUDE_DIR catch.hpp PATHS /usr/include /usr/local/include ENV 
 if (CATCH_INCLUDE_DIR)
   message(STATUS " found 'catch.hpp' in ${CATCH_INCLUDE_DIR}")
   include_directories(${CATCH_INCLUDE_DIR})
+
+  add_executable(test_linpack tests/try-linpack.cpp defs.hpp
+    global.cpp global.hpp linpackc.c linpackc.h linpackc.cpp
+    linpackc.hpp models.hpp timer.hpp)
+
+  target_link_libraries(test_linpack
+    ${Echll_Benchmark_LINK_LIBRARIES})
+
 else ()
   message(STATUS " not found catch.hpp. Unit test disabled")
 endif ()

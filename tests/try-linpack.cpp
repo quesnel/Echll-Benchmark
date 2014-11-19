@@ -24,20 +24,32 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __Benchmark_linpackc_hpp__
-#define __Benchmark_linpackc_hpp__
+#include "linpackc.hpp"
+#include "timer.hpp"
+#include <cstdio>
+#include <cstdlib>
 
-namespace bench {
+int main(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
 
-/**
- * @sleep_and_work (1) starts a new thread that computes the linpack code
- * in an infinity loop and (2) sleep the current thread during @e duration
- * time then (3) kill the linpack thread.
- *
- * @param duration in millisecond.
- */
-void sleep_and_work(double duration);
+    int ret = EXIT_SUCCESS;
+    double duration = 0.5;
+    const int size = 1000;
+    double diff;
 
+    {
+        bench::Timer t(&diff);
+        for (int i = 0; i < size; ++i)
+            bench::sleep_and_work(duration);
+    }
+
+    if (diff >= 0.0) {
+        std::printf("duration: %.6f\nmean....: %.6f\n", diff, (diff / size));
+    } else {
+        ret = EXIT_FAILURE;
+    }
+
+    return ret;
 }
-
-#endif

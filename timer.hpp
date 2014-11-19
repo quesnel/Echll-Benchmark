@@ -27,6 +27,8 @@
 #ifndef __Benchmark_timer_hpp__
 #define __Benchmark_timer_hpp__
 
+#include <chrono>
+
 namespace bench {
 
 struct Timer

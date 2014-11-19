@@ -29,7 +29,7 @@
 
 extern "C" {
 
-void linpackc_run(long nreps, int arsize, char *mempool);
+void linpackc_run(long nreps, int arsize, char *mempool, int *force_end);
 
 }
 
