@@ -70,9 +70,8 @@ endif ()
 ## Executable
 #
 
-add_executable(echll-benchmark defs.hpp global.cpp global.hpp
-  linpackc.c linpackc.cpp linpackc.h linpackc.hpp main.cpp models.hpp
-  timer.hpp)
+add_executable(echll-benchmark defs.hpp linpackc.c linpackc.cpp
+  linpackc.h linpackc.hpp main.cpp models.hpp timer.hpp)
 
 target_link_libraries(echll-benchmark ${Echll_Benchmark_LINK_LIBRARIES})
 
@@ -105,8 +104,8 @@ if (CATCH_INCLUDE_DIR)
   include_directories(${CATCH_INCLUDE_DIR})
 
   add_executable(test_linpack tests/try-linpack.cpp defs.hpp
-    global.cpp global.hpp linpackc.c linpackc.h linpackc.cpp
-    linpackc.hpp models.hpp timer.hpp)
+    linpackc.c linpackc.h linpackc.cpp linpackc.hpp models.hpp
+    timer.hpp)
 
   target_link_libraries(test_linpack
     ${Echll_Benchmark_LINK_LIBRARIES})

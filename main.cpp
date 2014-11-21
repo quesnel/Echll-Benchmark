@@ -30,7 +30,6 @@
 #include <vle/vle.hpp>
 #include <chrono>
 #include "defs.hpp"
-#include "global.hpp"
 #include "timer.hpp"
 #include "models.hpp"
 #include <cstdlib>
@@ -84,15 +83,15 @@ struct main_parameter
     bool use_thread_sub = false;
     FILE *output = stdout;
 
-    void print(const bench::logger& log)
+    void print(const vle::Context& ctx)
     {
-        log.write(1,
-                  "Flags:\n"
-                  "- duration: %ld ms\n"
-                  "- counter: %ld runs\n"
-                  "- use threaded root: %d\n"
-                  "- use threaded coupled: %d\n",
-                  duration, counter, use_thread_root, use_thread_sub);
+        vle_info(ctx,
+                 "Flags:\n"
+                 "- duration: %ld ms\n"
+                 "- counter: %ld runs\n"
+                 "- use threaded root: %d\n"
+                 "- use threaded coupled: %d\n",
+                 duration, counter, use_thread_root, use_thread_sub);
     }
 
     ~main_parameter()
@@ -226,44 +225,46 @@ static vle::CommonPtr main_common_new(long int duration,
 }
 
 static std::shared_ptr <bench::Factory>
-main_factory_new(const bench::logger& log, const main_parameter& mp, bool mpi_mode_and_root)
+main_factory_new(const vle::Context& ctx,
+                 const main_parameter& mp,
+                 bool mpi_mode_and_root)
 {
     std::shared_ptr <bench::Factory> ret = std::make_shared <bench::Factory>();
 
     typedef bench::Factory::modelptr modelptr;
 
     ret->functions.emplace("normal",
-                           [&log]() -> modelptr
+                           [&ctx]() -> modelptr
                            {
-                               return modelptr(new bench::NormalPixel(log));
+                               return modelptr(new bench::NormalPixel(ctx));
                            });
     ret->functions.emplace("top",
-                           [&log]() -> modelptr
+                           [&ctx]() -> modelptr
                            {
-                               return modelptr(new bench::TopPixel(log));
+                               return modelptr(new bench::TopPixel(ctx));
                            });
 
     if (mpi_mode_and_root) {
         ret->functions.emplace("coupled",
-                               [&log]() -> modelptr
+                               [&ctx]() -> modelptr
                                {
-                                   log.write(2, "build a SynchronousProxyModel");
-                                   return modelptr(new bench::SynchronousProxyModel);
+                                   return modelptr(
+                                       new bench::SynchronousProxyModel(ctx));
                                });
     } else {
         if (mp.use_thread_sub) {
             ret->functions.emplace("coupled",
-                                   [&log]() -> modelptr
+                                   [&ctx]() -> modelptr
                                    {
-                                       log.write(2, "build a CoupledThread\n");
-                                       return modelptr(new bench::CoupledThread(log));
+                                       return modelptr(
+                                           new bench::CoupledThread(ctx));
                                    });
         } else {
             ret->functions.emplace("coupled",
-                                   [&log]() -> modelptr
+                                   [&ctx]() -> modelptr
                                    {
-                                       log.write(2, "build a CoupledMono\n");
-                                       return modelptr(new bench::CoupledMono(log));
+                                       return modelptr(
+                                           new bench::CoupledMono(ctx));
                                    });
         }
     }
@@ -310,20 +311,18 @@ struct Sample
     std::vector <double> sample;
 };
 
-static int main_mono_mode(int argc, char *argv[])
+static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
-    bench::logger log(mp.verbose_mode);
-    log.log_to_fd(::fileno(stdout));
 
-    log.write(1, "No MPI mode activated\n");
-    mp.print(log);
+    vle_info(ctx, "No MPI mode activated\n");
+    mp.print(ctx);
 
-    std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
+    std::shared_ptr <bench::Factory> factory = main_factory_new(ctx, mp, false);
     vle::CommonPtr common = main_common_new(mp.duration, factory);
 
     for (int i = ::optind; i < argc; ++i) {
-        log.write(1, "Run for %s\n", argv[i]);
+        vle_info(ctx, "Run for %s\n", argv[i]);
 
         common->at("tgf-filesource") = std::string(argv[i]);
 
@@ -335,18 +334,18 @@ static int main_mono_mode(int argc, char *argv[])
 
             if (mp.use_thread_root) {             // TODO improve !
                 bench::Timer timer(&sample.sample[run]);
-                bench::RootThread root(log);
-                vle::Simulation <bench::DSDE> sim(dsde_engine, root);
+                bench::RootThread root(ctx);
+                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(0.0, 10.0);
             } else {
                 bench::Timer timer(&sample.sample[run]);
-                bench::RootMono root(log);
-                vle::Simulation <bench::DSDE> sim(dsde_engine, root);
+                bench::RootMono root(ctx);
+                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(0.0, 10.0);
             }
 
             if (sample.sample[run] < 0.0) {
-                log.write(1, "Simulation failure\n");
+                vle_info(ctx, "Simulation failure\n");
                 return -ECANCELED;
             }
 
@@ -363,34 +362,33 @@ static int main_mono_mode(int argc, char *argv[])
     return 0;
 }
 
-static int main_mpi_mode(int rank, int size, int argc, char *argv[])
+static int main_mpi_mode(const vle::Context& ctx, int rank, int size,
+                         int argc, char *argv[])
 {
     main_parameter mp = main_getopt(argc, argv);
-    bench::logger log(mp.verbose_mode);
-    log.log_to_fd(::fileno(stdout));
 
     if (rank == 0) {
-        log.write(1, "MPI mode activated: %d/%d\n", rank, size);
-        mp.print(log);
+        vle_info(ctx, "MPI mode activated: %d/%d\n", rank, size);
+        mp.print(ctx);
 
-        std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, true);
+        std::shared_ptr <bench::Factory> factory = main_factory_new(ctx, mp, true);
         vle::CommonPtr common = main_common_new(mp.duration, factory);
 
         common->at("tgf-filesource") = std::string(argv[::optind]);
         bench::DSDE dsde_engine(common);
 
         if (mp.use_thread_root) {
-            bench::RootMPIThread root(log);
-            vle::Simulation <bench::DSDE> sim(dsde_engine, root);
+            bench::RootMPIThread root(ctx);
+            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
             sim.run(0.0, 10.0);
         } else {
-            bench::RootMPIMono root(log);
-            vle::Simulation <bench::DSDE> sim(dsde_engine, root);
+            bench::RootMPIMono root(ctx);
+            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
             sim.run(0.0, 10.0);
         }
     } else {
-        log.write(1, "Need to start SynchronousProxyModel %d", rank);
-        std::shared_ptr <bench::Factory> factory = main_factory_new(log, mp, false);
+        vle_info(ctx, "Need to start SynchronousProxyModel %d", rank);
+        std::shared_ptr <bench::Factory> factory = main_factory_new(ctx, mp, false);
         vle::CommonPtr common = main_common_new(mp.duration, factory);
 
         common->operator[]("name") = vle::stringf("S%d", rank - 1);
@@ -407,14 +405,17 @@ static int main_mpi_mode(int rank, int size, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    std::ios::sync_with_stdio(false);
+
     boost::mpi::environment env(argc, argv);
     boost::mpi::communicator comm;
+    vle::Context ctx = std::make_shared <vle::ContextImpl>();
     int ret;
 
     if (comm.size() == 1)
-        ret = main_mono_mode(argc, argv);
+        ret = main_mono_mode(ctx, argc, argv);
     else
-        ret = main_mpi_mode(comm.rank(), comm.size(), argc, argv);
+        ret = main_mpi_mode(ctx, comm.rank(), comm.size(), argc, argv);
 
     return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
