@@ -192,7 +192,7 @@ struct Coupled : T
 
     virtual void apply_common(const vle::Common& common) override
     {
-        m_name = vle::common_get <std::string>(common, "name");
+        m_name = "S" + std::to_string(vle::common_get <int>(common, "name"));
     }
 
     virtual vle::Common update_common(const vle::Common& common,
@@ -211,7 +211,7 @@ struct Coupled : T
 
         vle::Common ret(common);
 
-        ret["name"] = vle::stringf("%s-%d", m_name.c_str(), child);
+        ret["name"] = child;
         ret["neighbour_number"] = nb;
 
         return std::move(ret);
@@ -274,12 +274,18 @@ struct Root : T
                                       const typename Root::edges& e,
                                       int child) override
     {
-        (void)v;
-        (void)e;
-
         vle::Common ret(common);
 
-        ret["name"] = vle::stringf("S%d", child);
+        auto mdl = v[child].get();
+        unsigned int nb = std::accumulate(
+            e.cbegin(), e.cend(),
+            0u, [&mdl](unsigned int x, const typename Root::edges::value_type& edge)
+            {
+                return edge.second.first == mdl ? x + 1u : x;
+            });
+
+        ret["name"] = child;
+        ret["neighbour_number"] = nb;
         ret["tgf-filesource"] = vle::stringf("S%d.tgf", child);
 
         return std::move(ret);
