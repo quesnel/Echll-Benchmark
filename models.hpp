@@ -52,8 +52,13 @@ struct TopPixel : AtomicModel
 
     virtual double init(const vle::Common& common, const double&) override final
     {
-        m_name = boost::any_cast <std::string>(common.at("name"));
-        m_duration = boost::any_cast <long int>(common.at("duration"));
+        try {
+            m_name = "top-" + std::to_string(boost::any_cast <int>(common.at("name")));
+            m_duration = boost::any_cast <long int>(common.at("duration"));
+        } catch (const std::exception &e) {
+            throw std::invalid_argument("TopPixel: failed to find name "
+                                        "or duration parameters");
+        }
 
         return 0.0;
     }
@@ -111,9 +116,16 @@ struct NormalPixel : AtomicModel
         m_value = 0.0;
         m_current_time = t;
         m_last_time = Infinity <double>::negative;
-        m_duration = boost::any_cast <long int>(common.at("duration"));
-        m_name = boost::any_cast <std::string>(common.at("name"));
-        m_neighbour_number = boost::any_cast <unsigned int>(common.at("neighbour_number"));
+
+        try {
+            m_duration = boost::any_cast <long int>(common.at("duration"));
+            m_name = "normal-" + std::to_string(boost::any_cast <int>(common.at("name")));
+            m_neighbour_number = boost::any_cast <unsigned int>(common.at("neighbour_number"));
+        } catch (const std::exception &e) {
+            throw std::invalid_argument("NormalPixel: failed to find duration,"
+                                        "name or neighbour_number parameters");
+        }
+
         m_received = 0;
         m_total_received = 0;
         m_phase = WAIT;
