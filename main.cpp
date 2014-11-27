@@ -459,7 +459,10 @@ int main(int argc, char *argv[])
 
     boost::mpi::environment env(argc, argv);
     boost::mpi::communicator comm;
+
     vle::Context ctx = std::make_shared <vle::ContextImpl>();
+    ctx->set_log_priority(3);
+
     int ret;
 
     if (comm.size() == 1)
