@@ -381,13 +381,13 @@ static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
             if (mp.use_thread_root) {             // TODO improve !
                 bench::Timer timer(&sample.sample[run]);
                 bench::RootThread root(ctx);
-                vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(mp.simulation_begin,
                         mp.simulation_duration + mp.simulation_begin);
             } else {
                 bench::Timer timer(&sample.sample[run]);
                 bench::RootMono root(ctx);
-                vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(mp.simulation_begin,
                         mp.simulation_duration + mp.simulation_begin);
             }
@@ -427,12 +427,12 @@ static int main_mpi_mode(const vle::Context& ctx, int rank, int size,
 
         if (mp.use_thread_root) {
             bench::RootMPIThread root(ctx);
-            vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
             sim.run(mp.simulation_begin,
                     mp.simulation_duration - mp.simulation_begin);
         } else {
             bench::RootMPIMono root(ctx);
-            vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
             sim.run(mp.simulation_begin,
                     mp.simulation_duration - mp.simulation_begin);
         }
