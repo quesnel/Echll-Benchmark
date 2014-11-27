@@ -70,6 +70,17 @@ endif ()
 ## Executable
 #
 
+option(WITH_LOGGING "Logging system in echll [default=ON]" ON)
+option(WITH_DEBUG "Debugging system in echll [default=ON]" ON)
+
+if (WITH_LOGGING)
+    set(echll_compile_flags "-DENABLE_LOGGING")
+endif ()
+
+if (WITH_DEBUG)
+    set(echll_compile_flags "-DENABLE_DEBUG ${echll_compile_flags}")
+endif ()
+
 add_executable(echll-benchmark defs.hpp linpackc.c linpackc.cpp
   linpackc.h linpackc.hpp main.cpp models.hpp timer.hpp)
 
@@ -86,7 +97,7 @@ if (MPI_CXX_LINK_FLAGS)
 endif ()
 
 set_target_properties(echll-benchmark PROPERTIES
-  COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
+  COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden ${echll_compile_flags}")
 
 install(TARGETS echll-benchmark DESTINATION bin)
 
