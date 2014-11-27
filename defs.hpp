@@ -42,7 +42,7 @@ struct Infinity
 };
 
 typedef vle::Time <double, Infinity<double>> Time;
-typedef double Data;
+typedef int Data;
 
 typedef vle::dsde::Engine <Time, Data> DSDE;
 typedef vle::dsde::Factory <Time, Data> Factory;

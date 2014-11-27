@@ -38,13 +38,12 @@ namespace bench {
 
 struct TopPixel : AtomicModel
 {
+    int m_id;
     std::string m_name;
     long int m_duration;
-    double m_value;
 
     TopPixel(const vle::Context& ctx)
         : AtomicModel(ctx, {}, {"0"})
-        , m_value(0)
     {}
 
     virtual ~TopPixel()
@@ -53,7 +52,8 @@ struct TopPixel : AtomicModel
     virtual double init(const vle::Common& common, const double&) override final
     {
         try {
-            m_name = "top-" + std::to_string(boost::any_cast <int>(common.at("name")));
+            m_id = boost::any_cast <int>(common.at("id"));
+            m_name = std::string("top-") + boost::any_cast <std::string>(common.at("name"));
             m_duration = boost::any_cast <long int>(common.at("duration"));
         } catch (const std::exception &e) {
             throw std::invalid_argument("TopPixel: failed to find name "
@@ -73,7 +73,9 @@ struct TopPixel : AtomicModel
 
     virtual void lambda() const override final
     {
-        y[0] = {m_value};
+        vle_dbg(AtomicModel::ctx, "[%s] lambda\n", m_name.c_str());
+
+        y[0] = {m_id};
     }
 };
 
@@ -81,8 +83,8 @@ struct NormalPixel : AtomicModel
 {
     enum Phase { WAIT, SEND };
 
+    int          m_id;
     std::string  m_name;
-    double       m_value;
     double       m_current_time;
     double       m_last_time;
     long int     m_duration;
@@ -93,7 +95,6 @@ struct NormalPixel : AtomicModel
 
     NormalPixel(const vle::Context& ctx)
         : AtomicModel(ctx, {"0"}, {"0"})
-        , m_value(0.0)
         , m_current_time(Infinity <double>::negative)
         , m_last_time(Infinity <double>::negative)
         , m_neighbour_number(0)
@@ -113,14 +114,16 @@ struct NormalPixel : AtomicModel
     virtual double init(const vle::Common& common,
                         const double& t) override final
     {
-        m_value = 0.0;
         m_current_time = t;
         m_last_time = Infinity <double>::negative;
 
         try {
+            m_id = boost::any_cast <int>(common.at("id"));
             m_duration = boost::any_cast <long int>(common.at("duration"));
-            m_name = "normal-" + std::to_string(boost::any_cast <int>(common.at("name")));
-            m_neighbour_number = boost::any_cast <unsigned int>(common.at("neighbour_number"));
+            m_name = std::string("normal-") +
+                boost::any_cast <std::string>(common.at("name"));
+            m_neighbour_number =
+                boost::any_cast <unsigned int>(common.at("neighbour_number"));
         } catch (const std::exception &e) {
             throw std::invalid_argument("NormalPixel: failed to find duration,"
                                         "name or neighbour_number parameters");
@@ -150,10 +153,19 @@ struct NormalPixel : AtomicModel
 
     void dint(const double& time)
     {
+        vle_dbg(AtomicModel::ctx, "[%s] dint at %f\n", m_name.c_str(), time);
+
         if (m_duration > 0)
             bench::sleep_and_work(m_duration);
 
         if (m_phase == SEND) {
+            vle_dbg(AtomicModel::ctx, "[%s] %" PRIuMAX "-%" PRIuMAX
+                    " (neighbour_number : %" PRIuMAX " expected)\n",
+                    m_name.c_str(),
+                    static_cast <std::uintmax_t>(m_received),
+                    static_cast <std::uintmax_t>(m_total_received),
+                    static_cast <std::uintmax_t>(m_neighbour_number * 10));
+
             m_phase = WAIT;
             m_total_received += m_received;
             m_received = 0;
@@ -173,8 +185,11 @@ struct NormalPixel : AtomicModel
 
     virtual void lambda() const override final
     {
-        if (m_phase == SEND)
-            y[0] = {m_value};
+        if (m_phase == SEND) {
+            vle_dbg(AtomicModel::ctx, "[%s] lambda\n", m_name.c_str());
+
+            y[0] = {m_id};
+        }
     }
 };
 
@@ -192,7 +207,7 @@ struct Coupled : T
 
     virtual void apply_common(const vle::Common& common) override
     {
-        m_name = "S" + std::to_string(vle::common_get <int>(common, "name"));
+        m_name = vle::common_get <std::string>(common, "name");
     }
 
     virtual vle::Common update_common(const vle::Common& common,
@@ -211,7 +226,14 @@ struct Coupled : T
 
         vle::Common ret(common);
 
-        ret["name"] = child;
+        vle_dbg(T::ctx, "[%s] init %s (%p) with %" PRIuMAX " neightbour\n",
+                m_name.c_str(),
+                vle::stringf("%s-%d", m_name.c_str(), child).c_str(),
+                mdl,
+                static_cast <std::uintmax_t>(nb));
+
+        ret["id"] = child;
+        ret["name"] = vle::stringf("%s-%d", m_name.c_str(), child);
         ret["neighbour_number"] = nb;
 
         return std::move(ret);
@@ -284,9 +306,11 @@ struct Root : T
                 return edge.second.first == mdl ? x + 1u : x;
             });
 
-        ret["name"] = child;
+        ret["id"] = child;
+        ret["name"] = vle::stringf("S%d", child);
         ret["neighbour_number"] = nb;
         ret["tgf-filesource"] = vle::stringf("S%d.tgf", child);
+        ret["tgf-format"] = (int)1;
 
         return std::move(ret);
     }
