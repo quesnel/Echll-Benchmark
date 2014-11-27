@@ -92,6 +92,7 @@ struct NormalPixel : AtomicModel
     unsigned int m_received;
     unsigned int m_total_received;
     Phase        m_phase;
+    double       m_simulation_duration;
 
     NormalPixel(const vle::Context& ctx)
         : AtomicModel(ctx, {"0"}, {"0"})
@@ -101,14 +102,24 @@ struct NormalPixel : AtomicModel
         , m_received(0)
         , m_total_received(0)
         , m_phase(WAIT)
-    {}
+    {
+        try {
+            m_simulation_duration = boost::any_cast <double>(ctx->get_user_data());
+        } catch (const std::exception &e) {
+            throw std::invalid_argument("Normal pixel can not read the "
+                                        "simulation duration parameter");
+        }
+    }
 
     virtual ~NormalPixel()
     {
-        vle_info(AtomicModel::ctx,
-                 "NormalPixel %s have received %" PRIuMAX " messages\n",
-                 m_name.c_str(),
-                 static_cast <std::uintmax_t>(m_total_received));
+        if (m_total_received != (m_simulation_duration * m_neighbour_number)) {
+            vle_dbg(AtomicModel::ctx, "/!\\ [%s] failure: have received %"
+                    PRIuMAX " messages (%" PRIuMAX " expected)\n",
+                    m_name.c_str(),
+                    static_cast <std::uintmax_t>(m_total_received),
+                    static_cast <std::uintmax_t>(m_neighbour_number * 10));
+        }
     }
 
     virtual double init(const vle::Common& common,
@@ -175,7 +186,13 @@ struct NormalPixel : AtomicModel
 
     void dext(const double& time)
     {
-        (void)time;
+        vle_dbg(AtomicModel::ctx, "[%s] dext at %f (x[0].size: %" PRIuMAX " received: %" PRIuMAX " neighbour_number: %" PRIuMAX ")\n",
+                m_name.c_str(), time,
+                static_cast <std::uintmax_t>(x[0].size()),
+                static_cast <std::uintmax_t>(m_received),
+                static_cast <std::uintmax_t>(m_neighbour_number));
+        if (m_last_time == time)
+            vle_dbg(AtomicModel::ctx, "/!\\ [%s] oups at %f", m_name.c_str(), time);
 
         m_received += x[0].size();
 

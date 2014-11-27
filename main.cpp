@@ -59,6 +59,8 @@ static void main_show_help()
                  "              3 = fill terminal mode\n"
                  "  -o file     Output results into output file `file'."
                  "              (Default is standard output)\n"
+                 "  -s begin,duration Assign the begin and the duration of\n"
+                 "              the simulation. Default 0,10\n"
                  "\n"
                  "Examples:\n"
                  "$ Echll_Benchmark -d 100 -c 42 -t 3 root.tgf\n"
@@ -76,6 +78,8 @@ struct main_parameter
 {
     main_parameter() = default;
 
+    double simulation_begin = 0.0;
+    double simulation_duration = 10.0;
     long int duration = 100;
     long int counter = 1;
     int verbose_mode = 0;
@@ -87,10 +91,13 @@ struct main_parameter
     {
         vle_info(ctx,
                  "Flags:\n"
+                 "- simulation begin at: %f\n"
+                 "- simulation duration: %f\n"
                  "- duration: %ld ms\n"
                  "- counter: %ld runs\n"
                  "- use threaded root: %d\n"
                  "- use threaded coupled: %d\n",
+                 simulation_begin, simulation_duration,
                  duration, counter, use_thread_root, use_thread_sub);
     }
 
@@ -101,12 +108,13 @@ struct main_parameter
     }
 };
 
-static main_parameter main_getopt(int argc, char* argv[])
+static main_parameter main_getopt(const vle::Context& ctx,
+                                  int argc, char* argv[])
 {
     main_parameter ret;
     int opt;
 
-    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:o:")) != -1) {
+    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:o:s:")) != -1) {
         switch (opt) {
         case 'v':
             main_show_version();
@@ -197,6 +205,42 @@ static main_parameter main_getopt(int argc, char* argv[])
                 }
 
                 ret.output = file;
+                break;
+            }
+        case 's':
+            {
+                char *nptr;
+                errno = 0;
+                ret.simulation_begin = strtod(::optarg, &nptr);
+                if (errno) {
+                    std::fprintf(stderr, "-s: Failed to convert %s into"
+                                 " two reals (double,double)\n", ::optarg);
+                    exit(EXIT_FAILURE);
+                }
+
+                if (nptr != NULL) {
+                    if (*nptr != ',') {
+                        std::fprintf(stderr, "-s: Failed to convert %s into "
+                                     " two reals (double,double)\n", ::optarg);
+                        exit(EXIT_FAILURE);
+                    }
+                    nptr++;
+                    errno = 0;
+                    ret.simulation_duration = strtod(nptr, &nptr);
+                    if (errno) {
+                        std::fprintf(stderr, "-s: Failed to convert %s into"
+                                     " two reals (double, double)\n", ::optarg);
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                if (ret.simulation_duration <= 0.0) {
+                    std::fprintf(stderr, "-s: simulation duration must be a"
+                                 " positive real not null\n");
+                    exit(EXIT_FAILURE);
+                }
+
+                break;
             }
         }
     }
@@ -205,6 +249,8 @@ static main_parameter main_getopt(int argc, char* argv[])
         std::fprintf(stderr, "Expected argument after options\n");
         exit(EXIT_FAILURE);
     }
+
+    ctx->set_user_data(ret.simulation_duration);
 
     return std::move(ret);
 }
@@ -313,7 +359,7 @@ struct Sample
 
 static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
 {
-    main_parameter mp = main_getopt(argc, argv);
+    main_parameter mp = main_getopt(ctx, argc, argv);
 
     vle_info(ctx, "No MPI mode activated\n");
     mp.print(ctx);
@@ -335,13 +381,15 @@ static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
             if (mp.use_thread_root) {             // TODO improve !
                 bench::Timer timer(&sample.sample[run]);
                 bench::RootThread root(ctx);
-                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
-                sim.run(0.0, 10.0);
+                vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+                sim.run(mp.simulation_begin,
+                        mp.simulation_duration + mp.simulation_begin);
             } else {
                 bench::Timer timer(&sample.sample[run]);
                 bench::RootMono root(ctx);
-                vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
-                sim.run(0.0, 10.0);
+                vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+                sim.run(mp.simulation_begin,
+                        mp.simulation_duration + mp.simulation_begin);
             }
 
             if (sample.sample[run] < 0.0) {
@@ -365,7 +413,7 @@ static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
 static int main_mpi_mode(const vle::Context& ctx, int rank, int size,
                          int argc, char *argv[])
 {
-    main_parameter mp = main_getopt(argc, argv);
+    main_parameter mp = main_getopt(ctx, argc, argv);
 
     if (rank == 0) {
         vle_info(ctx, "MPI mode activated: %d/%d\n", rank, size);
@@ -379,12 +427,14 @@ static int main_mpi_mode(const vle::Context& ctx, int rank, int size,
 
         if (mp.use_thread_root) {
             bench::RootMPIThread root(ctx);
-            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
-            sim.run(0.0, 10.0);
+            vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+            sim.run(mp.simulation_begin,
+                    mp.simulation_duration - mp.simulation_begin);
         } else {
             bench::RootMPIMono root(ctx);
-            vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
-            sim.run(0.0, 10.0);
+            vle::SimulationDbg <bench::DSDE> sim(ctx, dsde_engine, root);
+            sim.run(mp.simulation_begin,
+                    mp.simulation_duration - mp.simulation_begin);
         }
     } else {
         vle_info(ctx, "Need to start SynchronousProxyModel %d", rank);
