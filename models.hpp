@@ -29,7 +29,7 @@
 
 #include "linpackc.hpp"
 #include "defs.hpp"
-#include <vle/mpi.hpp>
+#include <vle/mpi-synchronous.hpp>
 #include <vle/utils.hpp>
 #include <fstream>
 #include <numeric>

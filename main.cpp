@@ -26,7 +26,7 @@
 
 #include <vle/dsde.hpp>
 #include <vle/common.hpp>
-#include <vle/mpi.hpp>
+#include <vle/mpi-synchronous.hpp>
 #include <vle/vle.hpp>
 #include <chrono>
 #include "defs.hpp"
