@@ -194,6 +194,9 @@ struct NormalPixel : AtomicModel
         if (m_last_time == time)
             vle_dbg(AtomicModel::ctx, "/!\\ [%s] oups at %f", m_name.c_str(), time);
 
+        for (size_t i = 0, e = x[0].size(); i != e; ++i)
+            vle_dbg(AtomicModel::ctx, "value: %d\n", x[0][i]);
+
         m_received += x[0].size();
 
         if (m_received == m_neighbour_number)
