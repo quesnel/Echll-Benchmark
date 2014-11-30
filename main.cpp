@@ -462,6 +462,7 @@ int main(int argc, char *argv[])
 
     vle::Context ctx = std::make_shared <vle::ContextImpl>();
     ctx->set_log_priority(3);
+    ctx->set_thread_number(8);
 
     int ret;
 
