@@ -119,6 +119,10 @@ struct NormalPixel : AtomicModel
                     m_name.c_str(),
                     static_cast <std::uintmax_t>(m_total_received),
                     static_cast <std::uintmax_t>(m_neighbour_number * 10));
+
+#ifdef NDEBUG
+            throw std::runtime_error("Bad end\n");
+#endif
         }
     }
 
@@ -191,8 +195,10 @@ struct NormalPixel : AtomicModel
                 static_cast <std::uintmax_t>(x[0].size()),
                 static_cast <std::uintmax_t>(m_received),
                 static_cast <std::uintmax_t>(m_neighbour_number));
-        if (m_last_time == time)
+        if (m_last_time == time) {
             vle_dbg(AtomicModel::ctx, "/!\\ [%s] oups at %f", m_name.c_str(), time);
+            throw std::runtime_error("Oups event\n");
+        }
 
         for (size_t i = 0, e = x[0].size(); i != e; ++i)
             vle_dbg(AtomicModel::ctx, "value: %d\n", x[0][i]);
