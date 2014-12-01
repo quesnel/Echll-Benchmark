@@ -179,7 +179,8 @@ struct NormalPixel : AtomicModel
                     m_name.c_str(),
                     static_cast <std::uintmax_t>(m_received),
                     static_cast <std::uintmax_t>(m_total_received),
-                    static_cast <std::uintmax_t>(m_neighbour_number * 10));
+                    static_cast <std::uintmax_t>(m_neighbour_number *
+                                                 m_simulation_duration));
 
             m_phase = WAIT;
             m_total_received += m_received;
