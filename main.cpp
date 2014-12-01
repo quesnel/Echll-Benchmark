@@ -44,7 +44,8 @@ static void main_show_version()
 
 static void main_show_help()
 {
-    std::fprintf(stdout, "Echll_Benchmark [-v][-h][-d real]\n"
+    std::fprintf(stdout, "Echll_Benchmark [-v][-h][-d duration][-c replicas][-t thread_mode]\n"
+                 "                [-q verbose_level][-o output_file][-s begin,duration][-n thread_number]\n"
                  "Options:\n"
                  "  -h          This help\n"
                  "  -v          Version of Echll_Benchmark\n"
@@ -61,6 +62,8 @@ static void main_show_help()
                  "              (Default is standard output)\n"
                  "  -s begin,duration Assign the begin and the duration of\n"
                  "              the simulation. Default 0,10\n"
+                 "  -n thread_number Assign the maximum thread to use. Default\n"
+                 "              is the value of std::thread::hardware_concurrency()\n"
                  "\n"
                  "Examples:\n"
                  "$ Echll_Benchmark -d 100 -c 42 -t 3 root.tgf\n"
@@ -80,6 +83,7 @@ struct main_parameter
 
     double simulation_begin = 0.0;
     double simulation_duration = 10.0;
+    unsigned long int thread_number = std::max(1u, std::thread::hardware_concurrency());
     long int duration = 100;
     long int counter = 1;
     int verbose_mode = 0;
@@ -114,7 +118,7 @@ static main_parameter main_getopt(const vle::Context& ctx,
     main_parameter ret;
     int opt;
 
-    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:o:s:")) != -1) {
+    while ((opt = ::getopt(argc, argv, "vhq:d:c:t:o:s:n:")) != -1) {
         switch (opt) {
         case 'v':
             main_show_version();
@@ -242,6 +246,18 @@ static main_parameter main_getopt(const vle::Context& ctx,
 
                 break;
             }
+        case 'n':
+            {
+                char *nptr;
+                ret.thread_number = ::strtoul(::optarg, &nptr, 10);
+                if (nptr == ::optarg) {
+                    std::fprintf(stderr,
+                                 "-n: Failed to convert %s into verbose mode"
+                                 " (integer)\n", ::optarg);
+                    exit(EXIT_FAILURE);
+                }
+            }
+            break;
         }
     }
 
@@ -303,7 +319,7 @@ main_factory_new(const vle::Context& ctx,
                                    [&ctx]() -> modelptr
                                    {
                                        return modelptr(
-                                           new bench::CoupledThread(ctx));
+                                           new bench::CoupledThread(ctx, 4));
                                    });
         } else {
             ret->functions.emplace("coupled",
@@ -380,13 +396,13 @@ static int main_mono_mode(const vle::Context& ctx, int argc, char *argv[])
 
             if (mp.use_thread_root) {             // TODO improve !
                 bench::Timer timer(&sample.sample[run]);
-                bench::RootThread root(ctx);
+                bench::RootThread root(ctx, mp.thread_number);
                 vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(mp.simulation_begin,
                         mp.simulation_duration + mp.simulation_begin);
             } else {
                 bench::Timer timer(&sample.sample[run]);
-                bench::RootMono root(ctx);
+                bench::RootMono root(ctx, mp.thread_number);
                 vle::Simulation <bench::DSDE> sim(ctx, dsde_engine, root);
                 sim.run(mp.simulation_begin,
                         mp.simulation_duration + mp.simulation_begin);
@@ -462,7 +478,6 @@ int main(int argc, char *argv[])
 
     vle::Context ctx = std::make_shared <vle::ContextImpl>();
     ctx->set_log_priority(3);
-    ctx->set_thread_number(8);
 
     int ret;
 

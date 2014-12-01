@@ -222,6 +222,10 @@ struct Coupled : T
         : T(ctx)
     {}
 
+    Coupled(const vle::Context& ctx, unsigned thread_number)
+        : T(ctx, thread_number)
+    {}
+
     virtual ~Coupled()
     {}
 
@@ -304,8 +308,8 @@ struct RootMPI : T
 template <typename T>
 struct Root : T
 {
-    Root(const vle::Context& ctx)
-        : T(ctx)
+    Root(const vle::Context& ctx, unsigned thread_number)
+        : T(ctx, thread_number)
     {}
 
     virtual ~Root()
