@@ -120,9 +120,9 @@ struct NormalPixel : AtomicModel
                     static_cast <std::uintmax_t>(m_total_received),
                     static_cast <std::uintmax_t>(m_neighbour_number * 10));
 
-#ifdef NDEBUG
+//#ifdef NDEBUG
             throw std::runtime_error("Bad end\n");
-#endif
+//#endif
         }
     }
 
