@@ -73,7 +73,7 @@ struct TopPixel : AtomicModel
 
     virtual void lambda() const override final
     {
-        vle_dbg(AtomicModel::ctx, "[%s] lambda\n", m_name.c_str());
+        vle_dbg(context(), "[%s] lambda\n", m_name.c_str());
 
         y[0] = {m_id};
     }
@@ -114,7 +114,7 @@ struct NormalPixel : AtomicModel
     virtual ~NormalPixel()
     {
         if (m_total_received != (m_simulation_duration * m_neighbour_number)) {
-            vle_dbg(AtomicModel::ctx, "/!\\ [%s] failure: have received %"
+            vle_dbg(context(), "/!\\ [%s] failure: have received %"
                     PRIuMAX " messages (%" PRIuMAX " expected)\n",
                     m_name.c_str(),
                     static_cast <std::uintmax_t>(m_total_received),
@@ -168,13 +168,13 @@ struct NormalPixel : AtomicModel
 
     void dint(const double& time)
     {
-        vle_dbg(AtomicModel::ctx, "[%s] dint at %f\n", m_name.c_str(), time);
+        vle_dbg(context(), "[%s] dint at %f\n", m_name.c_str(), time);
 
         if (m_duration > 0)
             bench::sleep_and_work(m_duration);
 
         if (m_phase == SEND) {
-            vle_dbg(AtomicModel::ctx, "[%s] %" PRIuMAX "-%" PRIuMAX
+            vle_dbg(context(), "[%s] %" PRIuMAX "-%" PRIuMAX
                     " (neighbour_number : %" PRIuMAX " expected)\n",
                     m_name.c_str(),
                     static_cast <std::uintmax_t>(m_received),
@@ -191,18 +191,18 @@ struct NormalPixel : AtomicModel
 
     void dext(const double& time)
     {
-        vle_dbg(AtomicModel::ctx, "[%s] dext at %f (x[0].size: %" PRIuMAX " received: %" PRIuMAX " neighbour_number: %" PRIuMAX ")\n",
+        vle_dbg(context(), "[%s] dext at %f (x[0].size: %" PRIuMAX " received: %" PRIuMAX " neighbour_number: %" PRIuMAX ")\n",
                 m_name.c_str(), time,
                 static_cast <std::uintmax_t>(x[0].size()),
                 static_cast <std::uintmax_t>(m_received),
                 static_cast <std::uintmax_t>(m_neighbour_number));
         if (m_last_time == time) {
-            vle_dbg(AtomicModel::ctx, "/!\\ [%s] oups at %f", m_name.c_str(), time);
+            vle_dbg(context(), "/!\\ [%s] oups at %f", m_name.c_str(), time);
             throw std::runtime_error("Oups event\n");
         }
 
         for (size_t i = 0, e = x[0].size(); i != e; ++i)
-            vle_dbg(AtomicModel::ctx, "value: %d\n", x[0][i]);
+            vle_dbg(context(), "value: %d\n", x[0][i]);
 
         m_received += x[0].size();
 
@@ -213,7 +213,7 @@ struct NormalPixel : AtomicModel
     virtual void lambda() const override final
     {
         if (m_phase == SEND) {
-            vle_dbg(AtomicModel::ctx, "[%s] lambda\n", m_name.c_str());
+            vle_dbg(context(), "[%s] lambda\n", m_name.c_str());
 
             y[0] = {m_id};
         }
@@ -257,7 +257,8 @@ struct Coupled : T
 
         vle::Common ret(common);
 
-        vle_dbg(T::ctx, "[%s] init %s (%p) with %" PRIuMAX " neightbour\n",
+        vle_dbg(T::context(),
+                "[%s] init %s (%p) with %" PRIuMAX " neightbour\n",
                 m_name.c_str(),
                 vle::stringf("%s-%d", m_name.c_str(), child).c_str(),
                 mdl,
@@ -304,7 +305,8 @@ struct RootMPI : T
 
         mdl->rank = child + 1;
 
-        vle_info(T::ctx, "RootMPI assign %d to child %d\n", mdl->rank, child);
+        vle_info(T::context(), "RootMPI assign %d to child %d\n", mdl->rank,
+                 child);
 
         vle::Common ret(common);
 
